@@ -1,10 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # A Script that automates pasting to a number of pastebin services
 # relying only on bash, sed, coreutils (mktemp/sort/tr/wc/whoami/tee) and wget
 # Copyright (c) 2007 Bo Ørsted Andresen <bo.andresen@zlin.dk>
 # Distributed as-is. With no warranties.
 
-VERSION="2.6"
+VERSION="2.7"
 
 # escape and new line characters
 E=$'\e'
@@ -130,13 +130,13 @@ verifylanguage() {
 	if [[ -n ${!lang} ]]; then
 		((i=0))
 		for l in ${!lang}; do
-			if [[ $LANGUAGE == ${l//%/ } ]]; then
+			if [[ $LANGUAGE == ${l//\%/ } ]]; then
 				if [[ -n ${!count} ]]; then
 					((LANGUAGE=i+1))
 				elif [[ -n ${!values} ]]; then
 					((j=0))
 					for v in ${!values}; do
-						[[ i -eq j ]] && LANGUAGE=${v//%/ } && break
+						[[ i -eq j ]] && LANGUAGE=${v//\%/ } && break
 						((j++))
 					done
 				fi
@@ -160,13 +160,13 @@ verifyexpiration() {
 	if [[ -n ${!expiration} ]]; then
 		((i=0))
 		for e in ${!expiration}; do
-			if [[ ${EXPIRATION} == ${e//%/ } ]]; then
+			if [[ ${EXPIRATION} == ${e//\%/ } ]]; then
 				if [[ -n ${!count} ]]; then
 					((EXPIRATION=i+1))
 				elif [[ -n {!values} ]]; then
 					((j=0))
 					for v in ${!values}; do
-						[[ i -eq j ]] && EXPIRATION=${e//%/ } && break
+						[[ i -eq j ]] && EXPIRATION=${e//\%/ } && break
 						((j++))
 					done
 				fi
@@ -297,8 +297,8 @@ showlanguages() {
 	lang=LANGUAGES_$ENGINE
 	[[ -z ${!lang} ]] && echo "$N\"$ENGINE\" has no support for setting language." >&2
 	for l in ${!lang}; do
-		[[ ${l//%/ } = $DEFAULT_LANGUAGE ]] && d="*" || d=" "
-		echo "   $d${l//%/ }"
+		[[ ${l//\%/ } = $DEFAULT_LANGUAGE ]] && d="*" || d=" "
+		echo "   $d${l//\%/ }"
 	done | sort
 }
 
@@ -309,8 +309,8 @@ showexpirations() {
 	info=EXPIRATION_INFO_$SERVICE
 	[[ -z ${!expiration} ]] && echo "$N${!info}\"$ENGINE\" has no support for setting expiration." >&2
 	for e in ${!expiration}; do
-		[[ ${e//%/ } = $DEFAULT_EXPIRATION ]] && d="*" || d=" "
-		echo "   $d${e//%/ }"
+		[[ ${e//\%/ } = $DEFAULT_EXPIRATION ]] && d="*" || d=" "
+		echo "   $d${e//\%/ }"
 	done
 }
 
@@ -354,13 +354,13 @@ postdata() {
 	nr=${!post//[^ ]}
 	[[ 6 = ${#nr} ]] || die "\"${SERVICE}\" is not supported by ${FUNCNAME}()."
 	extra=${!post%% *}
-	[[ % = $extra ]] || echo -n "$extra&"
+	[[ '%' = $extra ]] || echo -n "$extra&"
 	e() {
 		post="$1"
 		shift
 		while [[ -n $1 ]]; do
 			f=${post%% *}
-			[[ % != $f ]] && echo -n "$f=${!1}" && [[ $# -gt 1 ]] && echo -n "&"
+			[[ '%' != $f ]] && echo -n "$f=${!1}" && [[ $# -gt 1 ]] && echo -n "&"
 			shift
 			post=${post#$f }
 		done
@@ -563,7 +563,7 @@ if [[ -z $DESCRIPTION ]]; then
 		done
 		;;
 		files )
-		DESCRIPTION="${FILES[*]}"
+		DESCRIPTION="${FILES[@]}"
 		;;
 		* )
 		DESCRIPTION="$SOURCE"
@@ -603,7 +603,7 @@ case "$SOURCE" in
 	fi
 	;;
 	files | stdin )
-	if [[ ${#FILES[*]} -gt 1 ]]; then
+	if [[ ${#FILES[@]} -gt 1 ]]; then
 		for f in "${FILES[@]}"; do
 			[[ -r $f ]] || notreadable "$f"
 			if [[ $TEE ]]; then
@@ -654,12 +654,12 @@ warnings >&2
 # create temp file (wget is much more reliable reading large input via --post-file rather than --post-data)
 [[ -f $TMPF ]] || TMPF=$(mktemp /tmp/wgetpaste.XXXXXX)
 if [[ -f $TMPF ]]; then
-    postdata > "$TMPF" || die "Failed to write to temporary file: \"$TMPF\"."
-    WGETARGS="--post-file=$TMPF"
+	postdata > "$TMPF" || die "Failed to write to temporary file: \"$TMPF\"."
+	WGETARGS="--post-file=$TMPF"
 else
 	# fall back to using --post-data if the temporary file could not be created
 	# TABs and new lines need to be escaped for wget to interpret it as one string
-    WGETARGS="--post-data=$(postdata | sed -e 's|$|%0a|g' -e 's|\t|%09|g' | tr -d '\n')"
+	WGETARGS="--post-data=$(postdata | sed -e 's|$|%0a|g' -e 's|\t|%09|g' | tr -d '\n')"
 fi
 
 # set recipient
