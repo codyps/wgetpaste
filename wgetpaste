@@ -4,7 +4,7 @@
 # Copyright (c) 2007 Bo Ørsted Andresen <bo.andresen@zlin.dk>
 # Distributed as-is. With no warranties.
 
-VERSION="2.8"
+VERSION="2.9"
 
 # don't inherit LANGUAGE from the env
 unset LANGUAGE
@@ -324,7 +324,7 @@ showurl() {
 
 x_paste() {
 	if [[ -x $(type -P xclip) ]]; then
-		xclip -loops 10 <<< "$*" || die "xclip failed."
+		xclip -loops 10 &>/dev/null <<< "$*" || die "xclip failed."
 	else
 		noxclip paste "write to"
 	fi
