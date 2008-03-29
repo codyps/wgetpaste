@@ -4,7 +4,7 @@
 # Copyright (c) 2007 Bo Ørsted Andresen <bo.andresen@zlin.dk>
 # Distributed as-is. With no warranties.
 
-VERSION="2.9"
+VERSION="2.10"
 
 # don't inherit LANGUAGE from the env
 unset LANGUAGE
@@ -169,7 +169,7 @@ verifyexpiration() {
 				elif [[ -n {!values} ]]; then
 					((j=0))
 					for v in ${!values}; do
-						[[ i -eq j ]] && EXPIRATION=${e//\%/ } && break
+						[[ i -eq j ]] && EXPIRATION=${v//\%/ } && break
 						((j++))
 					done
 				fi
