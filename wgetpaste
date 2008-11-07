@@ -4,7 +4,7 @@
 # Copyright (c) 2007 Bo Ørsted Andresen <bo.andresen@zlin.dk>
 # Distributed as-is. With no warranties.
 
-VERSION="2.11"
+VERSION="2.12"
 
 # don't inherit LANGUAGE from the env
 unset LANGUAGE
@@ -14,11 +14,16 @@ E=$'\e'
 N=$'\n'
 
 ### services
-SERVICES="ca rafb osl"
+SERVICES="ca dpaste rafb osl"
 # ca
 ENGINE_ca=ca
 URL_ca="http://pastebin.ca/"
 SIZE_ca="1024000 1%MB"
+# dpaste
+ENGINE_dpaste=dpaste
+URL_dpaste="http://dpaste.com/"
+DESCRIPTION_SIZE_dpaste="50"
+DEFAULT_EXPIRATION_dpaste="30 days"
 # rafb
 ENGINE_rafb=rafb
 URL_rafb="http://rafb.net/paste/ paste.php"
@@ -46,10 +51,18 @@ EXPIRATIONS_ca="Never 5%minutes 10%minutes 15%minutes 30%minutes 45%minutes 1%ho
 POST_ca="s=Submit+Post name description type expiry % content"
 REGEX_URL_ca='s|^.*content="[0-9]*;\(http://[^/]*/[0-9]*\)".*$|\1|p'
 REGEX_RAW_ca='s|^\(http://[^/]*/\)\([0-9]*\)$|\1raw/\2|'
+# dpaste
+LANGUAGES_dpaste="Plain%Text Apache%Config Bash CSS Diff Django%Template/HTML Haskell JavaScript \
+Python Python%Interactive/Traceback Ruby Ruby%HTML%(ERB) SQL XML"
+LANGUAGE_VALUES_dpaste="% Apache Bash Css Diff DjangoTemplate Haskell JScript Python PythonConsole \
+Ruby Rhtml Sql Xml"
+EXPIRATIONS_dpaste="30%days 30%days%after%last%view"
+EXPIRATION_VALUES_dpaste="off on"
+POST_dpaste="submit=Paste+it poster title language hold % content"
+REGEX_RAW_dpaste='s|^\(http://[^/]*/\)[^0-9]*\([0-9]*/\)$|\1\2plain/|'
 # rafb
 LANGUAGES_rafb="C C89 C99 C++ C# Java Pascal Perl PHP PL/I Python Ruby SQL VB Plain%Text"
 POST_rafb="% nick desc lang % cvt_tabs text"
-REGEX_RAW_rafb='s|html\?$|txt|'
 # osl
 LANGUAGES_osl="Plain%Text ActionScript Ada Apache%Log%File AppleScript Assembly%(NASM) \
 ASP Bash C C%for%Macs CAD%DCL CAD%Lisp C++ C# ColdFusion CSS D Delphi Diff DOS Eiffel Fortran \
@@ -85,9 +98,9 @@ notreadable() {
 
 noxclip() {
 	cat <<EOF >&2
-Could not find xclip on your system. In order to use --x$1 you must
-either emerge x11-misc/xclip or define x_$1() globally in /etc/wgetpaste
-or per user in ~/.wgetpaste to use another program (such as e.g. xcut or
+Could not find xclip on your system. In order to use --x$1 you must either
+emerge x11-misc/xclip or define x_$1() globally in /etc/wgetpaste.conf or
+per user in ~/.wgetpaste.conf to use another program (such as e.g. xcut or
 klipper) to $2 your clipboard.
 
 EOF
@@ -96,10 +109,10 @@ EOF
 
 ### conversions
 
-# escape % (used for escaping), & (used as separator in POST data), + (used as space in POST data) and space
+# escape % (used for escaping), & (used as separator in POST data), + (used as space in POST data), space and ;
 escape() {
-	sed -e 's|%|%25|g' -e 's|&|%26|g' -e 's|+|%2b|g' -e 's| |+|g' <<< "$*" || die "sed failed"
-}	
+	sed -e 's|%|%25|g' -e 's|&|%26|g' -e 's|+|%2b|g' -e 's|;|%3b|g' -e 's| |+|g' <<< "$*" || die "sed failed"
+}
 
 # if possible convert URL to raw
 converttoraw() {
@@ -139,7 +152,14 @@ verifylanguage() {
 				elif [[ -n ${!values} ]]; then
 					((j=0))
 					for v in ${!values}; do
-						[[ i -eq j ]] && LANGUAGE=${v//\%/ } && break
+						if [[ i -eq j ]]; then
+							if [[ ${v} == \% ]]; then
+								LANGUAGE=
+							else
+								LANGUAGE=${v//\%/ }
+							fi
+							break
+						fi
 						((j++))
 					done
 				fi
@@ -169,7 +189,14 @@ verifyexpiration() {
 				elif [[ -n {!values} ]]; then
 					((j=0))
 					for v in ${!values}; do
-						[[ i -eq j ]] && EXPIRATION=${v//\%/ } && break
+						if [[ i -eq j ]]; then
+							if [[ ${v} == \% ]]; then
+								EXPIRATION=
+							else
+								EXPIRATION=${v//\%/ }
+							fi
+							break
+						fi
 						((j++))
 					done
 				fi
@@ -251,7 +278,8 @@ Options:
     -i, --info                    append the output of \`$INFO_COMMAND\`
     -I, --info-only               paste the output of \`$INFO_COMMAND\` only
     -x, --xcut                    read input from clipboard (requires x11-misc/xclip)
-    -X, --xpaste                  write resulting url to clipboard (requires x11-misc/xclip)
+    -X, --xpaste                  write resulting url to the X primary selection buffer (requires x11-misc/xclip)
+    -C, --xclippaste              write resulting url to the X clipboard selection buffer (requires x11-misc/xclip)
 
     -r, --raw                     show url for the raw paste (no syntax highlighting or html)
     -t, --tee                     use tee to show what is being pasted
@@ -259,19 +287,19 @@ Options:
         --debug                   be *very* verbose (implies -v)
 
     -h, --help                    show this help
-    -g, --ignore-configs          ignore /etc/wgetpaste, ~/.wgetpaste etc.
+    -g, --ignore-configs          ignore /etc/wgetpaste.conf, ~/.wgetpaste.conf etc.
         --version                 show version information
 
 Defaults (DEFAULT_{NICK,SERVICE,LANGUAGE,EXPIRATION}[_\${SERVICE}]) can be overridden
-globally in /etc/wgetpaste or /etc/wgetpaste.d/*.bash or per user in any of ~/.wgetpaste
-or ~/.wgetpaste.d/*.bash.
+globally in /etc/wgetpaste.conf or /etc/wgetpaste.d/*.conf or per user in any of
+~/.wgetpaste.conf or ~/.wgetpaste.d/*.conf.
 EOF
 }
 
 showservices() {
 	echo "Services supported: (case sensitive):"
 	local max s IND INDV engine url d
-	max=0
+	max=4
 	for s in $SERVICES; do
 		[[ ${#s} -gt $max ]] && max=${#s}
 	done
@@ -284,13 +312,16 @@ showservices() {
 			[[ ${#s} -gt $max ]] && max=${#s}
 		done
 		((INDV=3+max+IND))
+		engine=" $E[${INDV}G| Pastebin engine:"
 	fi
+	echo "   Name: $E[${IND}G| Url:$engine"
+	echo -ne "   "; for((s=3;s<${INDV:-${IND}}+17;s++)); do (( $s == IND-1 || $s == INDV-1 )) && echo -ne "|" || echo -ne "="; done; echo
 	for s in $SERVICES; do
 		[[ $s = $DEFAULT_SERVICE ]] && d="*" || d=" "
-		[[ $VERBOSE ]] && engine=ENGINE_$s && engine="$E[${INDV}G- ${!engine}"
+		[[ $VERBOSE ]] && engine=ENGINE_$s && engine="$E[${INDV}G| ${!engine}"
 		url=URL_$s
 		url=${!url% *}
-		echo "   $d$s $E[${IND}G- $url$engine"
+		echo "   $d$s $E[${IND}G| $url$engine"
 	done | sort
 }
 
@@ -298,7 +329,7 @@ showlanguages() {
 	echo "Languages supported by $(getrecipient) (case sensitive):"
 	local l lang d
 	lang=LANGUAGES_$ENGINE
-	[[ -z ${!lang} ]] && echo "$N\"$ENGINE\" has no support for setting language." >&2
+	[[ -z ${!lang} ]] && echo "$N\"$ENGINE\" has no support for setting language." >&2 && exit 1
 	for l in ${!lang}; do
 		[[ ${l//\%/ } = $DEFAULT_LANGUAGE ]] && d="*" || d=" "
 		echo "   $d${l//\%/ }"
@@ -310,7 +341,7 @@ showexpirations() {
 	local e expiration info d
 	expiration=EXPIRATIONS_$ENGINE
 	info=EXPIRATION_INFO_$SERVICE
-	[[ -z ${!expiration} ]] && echo "$N${!info}\"$ENGINE\" has no support for setting expiration." >&2
+	[[ -z ${!expiration} ]] && echo "$N${!info}\"$ENGINE\" has no support for setting expiration." >&2 && exit 1
 	for e in ${!expiration}; do
 		[[ ${e//\%/ } = $DEFAULT_EXPIRATION ]] && d="*" || d=" "
 		echo "   $d${e//\%/ }"
@@ -320,13 +351,22 @@ showexpirations() {
 showurl() {
 	echo "Your ${2}paste can be seen here: $1"
 	[[ $XPASTE ]] && x_paste "$1"
+	[[ $XCLIPPASTE ]] && x_clip_paste "$1"
 }
 
 x_paste() {
 	if [[ -x $(type -P xclip) ]]; then
-		xclip -loops 10 &>/dev/null <<< "$*" || die "xclip failed."
+		echo -n "$*" | xclip -selection primary -loops 10 &>/dev/null || die "xclip failed."
 	else
 		noxclip paste "write to"
+	fi
+}
+
+x_clip_paste() {
+	if [[ -x $(type -P xclip) ]]; then
+		echo -n "$*" | xclip -selection clipboard -loops 10 &>/dev/null || die "xclip failed."
+	else
+		noxclip clip_paste "write to"
 	fi
 }
 
@@ -495,6 +535,9 @@ while [[ -n $1 ]]; do
 		-X | --xpaste )
 		XPASTE=0
 		;;
+		-C | --xclippaste )
+		XCLIPPASTE=0
+		;;
 		-* )
 		die "$0: unrecognized option \`$1'"
 		;;
@@ -506,14 +549,34 @@ while [[ -n $1 ]]; do
 done
 
 ### defaults
-[[ $IGNORECONFIGS ]] || for f in {/etc/,~/.}wgetpaste{.d/*.bash,}; do
-	if [[ -f $f ]]; then
-		. "$f" || die "Failed to source $f"
+load_configs() {
+	if [[ ! $IGNORECONFIGS ]]; then
+		# compatibility code
+		local f deprecated=
+		for f in {/etc/,~/.}wgetpaste{.d/*.bash,}; do
+			if [[ -f $f ]]; then
+				if [[ -z $deprecated ]]; then
+					echo "The config files for wgetpaste have changed to *.conf." >&2
+					echo >&2
+					deprecated=0
+				fi
+				echo "Please move ${f} to ${f%.bash}.conf" >&2
+				source "$f" || die "Failed to source $f"
+			fi
+		done
+		[[ -n $deprecated ]] && echo >&2
+		# new locations override old ones in case they collide
+		for f in {/etc/,~/.}wgetpaste{.d/*,}.conf; do
+			if [[ -f $f ]]; then
+				source "$f" || die "Failed to source $f"
+			fi
+		done
 	fi
-done
+}
+load_configs
 [[ $SERVICESET ]] && verifyservice "$SERVICESET" && SERVICE=$(escape "$SERVICESET")
 DEFAULT_NICK=${DEFAULT_NICK:-$(whoami)} || die "whoami failed"
-DEFAULT_SERVICE=${DEFAULT_SERVICE:-rafb}
+DEFAULT_SERVICE=${DEFAULT_SERVICE:-dpaste}
 DEFAULT_LANGUAGE=${DEFAULT_LANGUAGE:-Plain Text}
 DEFAULT_EXPIRATION=${DEFAULT_EXPIRATION:-1 month}
 SERVICE=${SERVICE:-${DEFAULT_SERVICE}}
@@ -554,6 +617,7 @@ else
 fi
 
 # set default description
+size=DESCRIPTION_SIZE_$SERVICE
 if [[ -z $DESCRIPTION ]]; then
 	case "$SOURCE" in
 		info )
@@ -572,6 +636,13 @@ if [[ -z $DESCRIPTION ]]; then
 		DESCRIPTION="$SOURCE"
 		;;
 	esac
+	if [[ -n ${!size} && ${#DESCRIPTION} -gt ${!size} ]]; then
+		DESCRIPTION="${DESCRIPTION: -${!size}}"
+	fi
+else
+	if [[ -n ${!size} && ${#DESCRIPTION} -gt ${!size} ]]; then
+		die "Your description (${#DESCRIPTION} bytes) is too long. Shorten it to fit within ${!size} bytes."
+	fi
 fi
 
 # create tmpfile for use with tee
