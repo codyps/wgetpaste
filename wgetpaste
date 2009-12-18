@@ -4,7 +4,7 @@
 # Copyright (c) 2007-2009 Bo Ørsted Andresen <bo.andresen@zlin.dk>
 # Distributed in the public domain. Do with it whatever you want.
 
-VERSION="2.15"
+VERSION="2.16"
 
 # don't inherit LANGUAGE from the env
 unset LANGUAGE
@@ -38,6 +38,7 @@ URL_pocoo="http://paste.pocoo.org/"
 # tinyurl
 ENGINE_tinyurl=tinyurl
 URL_tinyurl="http://tinyurl.com/ api-create.php"
+REGEX_RAW_tinyurl='s|^\(http://[^/]*/\)\([[:alnum:]]*\)$|\1\2|'
 
 ### engines
 # ca
@@ -55,6 +56,7 @@ REGEX_RAW_ca='s|^\(http://[^/]*/\)\([0-9]*\)$|\1raw/\2|'
 LANGUAGES_codepad="C C++ D Haskell Lua OCaml PHP Perl Plain%Text Python Ruby Scheme Tcl"
 POST_codepad="submit % % lang % % code"
 REGEX_URL_codepad='s|^--.*\(http://codepad.org/[^ ]\+\)|\1|p'
+REGEX_RAW_codepad='s|^\(http://[^/]*/\)\([[:alnum:]]*\)$|\1\2/raw.rb|'
 # dpaste
 LANGUAGES_dpaste="Plain%Text Apache%Config Bash CSS Diff Django%Template/HTML Haskell JavaScript \
 Python Python%Interactive/Traceback Ruby Ruby%HTML%(ERB) SQL XML"
@@ -552,7 +554,7 @@ while [[ -n $1 ]]; do
 		requiredarg "$@"
 		SERVICE=tinyurl
 		SOURCE="url"
-		INPUTURL="$1"
+		INPUTURL="$2"
 		;;
 		-v | --verbose )
 		VERBOSE=0
