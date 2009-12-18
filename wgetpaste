@@ -4,7 +4,7 @@
 # Copyright (c) 2007-2009 Bo Ørsted Andresen <bo.andresen@zlin.dk>
 # Distributed in the public domain. Do with it whatever you want.
 
-VERSION="2.14"
+VERSION="2.15"
 
 # don't inherit LANGUAGE from the env
 unset LANGUAGE
@@ -14,22 +14,30 @@ E=$'\e'
 N=$'\n'
 
 ### services
-SERVICES="ca dpaste osl"
+SERVICES="ca codepad dpaste osl pocoo"
 # ca
 ENGINE_ca=ca
 URL_ca="http://pastebin.ca/"
 SIZE_ca="1024000 1%MB"
+# codepad
+ENGINE_codepad=codepad
+URL_codepad="http://codepad.org/"
+SIZE_codepad="64000 64%KB"
 # dpaste
 ENGINE_dpaste=dpaste
 URL_dpaste="http://dpaste.com/"
+SIZE_dpaste="25000 25%kB"
 DESCRIPTION_SIZE_dpaste="50"
 DEFAULT_EXPIRATION_dpaste="30 days"
 # osl
 ENGINE_osl=osl
 URL_osl="http://pastebin.osuosl.org/ pastebin.php"
+# pocoo
+ENGINE_pocoo=pocoo
+URL_pocoo="http://paste.pocoo.org/"
 # tinyurl
 ENGINE_tinyurl=tinyurl
-URL_tinyurl="http://tinyurl.com/ create.php"
+URL_tinyurl="http://tinyurl.com/ api-create.php"
 
 ### engines
 # ca
@@ -43,6 +51,10 @@ EXPIRATIONS_ca="Never 5%minutes 10%minutes 15%minutes 30%minutes 45%minutes 1%ho
 POST_ca="s=Submit+Post name description type expiry % content"
 REGEX_URL_ca='s|^.*content="[0-9]*;\(http://[^/]*/[0-9]*\)".*$|\1|p'
 REGEX_RAW_ca='s|^\(http://[^/]*/\)\([0-9]*\)$|\1raw/\2|'
+# codepad
+LANGUAGES_codepad="C C++ D Haskell Lua OCaml PHP Perl Plain%Text Python Ruby Scheme Tcl"
+POST_codepad="submit % % lang % % code"
+REGEX_URL_codepad='s|^--.*\(http://codepad.org/[^ ]\+\)|\1|p'
 # dpaste
 LANGUAGES_dpaste="Plain%Text Apache%Config Bash CSS Diff Django%Template/HTML Haskell JavaScript \
 Python Python%Interactive/Traceback Ruby Ruby%HTML%(ERB) SQL XML"
@@ -66,9 +78,21 @@ EXPIRATIONS_osl="Never 1%day 1%month"
 EXPIRATION_VALUES_osl="f d m"
 POST_osl="paste=Send poster % format expiry % code2"
 REGEX_RAW_osl='s|^\(http://[^/]*/\)\([0-9]*\)$|\1pastebin.php?dl=\2|'
-# tinyurl
-POST_tinyurl="submit=Make+TinyURL! % % % % % url"
-REGEX_URL_tinyurl='s|^<input type=hidden name=tinyurl value="\?\([^"]*\)"\?>$|\1|p'
+# pocoo
+LANGUAGES_pocoo="Apache%Config%(.htaccess) Bash Batch%(.bat) Boo C C# C++ Clojure Creole%Wiki CSS \
+CSV D Debian%control-files Django%/%Jinja%Templates Dylan Erlang eRuby%/%rhtml GAS GCC%Messages \
+Genshi%Templates Gettext%catalogs GL%Shader%language Haskell HTML INI%File Interactive%Ruby IO \
+IRC%Logs Java javac%Messages JavaScript JSP Lighttpd Literate%Haskell LLVM Lua Mako%Templates Matlab \
+Matlab%Session MiniD Multi-File Myghty%Templates MySQL Nasm Nginx Object-Pascal OCaml Perl PHP \
+PHP%(inline) Povray Python Python%Console%Sessions Python%Tracebacks reStructuredText Ruby Scala \
+Scheme Smalltalk Smarty sources.list SQL SquidConf TeX%/%LaTeX Plain%Text Unified%Diff Vim XML XSLT YAML"
+LANGUAGE_VALUES_pocoo="apache bash bat boo c csharp cpp clojure creole css csv d control html+django \
+dylan erlang rhtml gas gcc-messages html+genshi gettext glsl haskell html ini irb io irc java \
+javac-messages js jsp lighttpd literate-haskell llvm lua html+mako matlab matlabsession minid multi \
+html+myghty mysql nasm nginx objectpascal ocaml perl html+php php povray python pycon pytb rst ruby \
+scala scheme smalltalk smarty sourceslist sql squidconf tex text diff vim xml xslt yaml"
+POST_pocoo="submit=Paste! % % language % % code"
+REGEX_RAW_pocoo='s|^\(http://[^/]*/\)show\(/[0-9]*/\)$|\1raw\2|'
 
 ### errors
 die() {
@@ -525,7 +549,10 @@ while [[ -n $1 ]]; do
 		TEE=0
 		;;
 		-u | --tinyurl )
+		requiredarg "$@"
 		SERVICE=tinyurl
+		SOURCE="url"
+		INPUTURL="$1"
 		;;
 		-v | --verbose )
 		VERBOSE=0
@@ -579,7 +606,7 @@ load_configs() {
 load_configs
 [[ $SERVICESET ]] && verifyservice "$SERVICESET" && SERVICE=$(escape "$SERVICESET")
 DEFAULT_NICK=${DEFAULT_NICK:-$(whoami)} || die "whoami failed"
-DEFAULT_SERVICE=${DEFAULT_SERVICE:-dpaste}
+DEFAULT_SERVICE=${DEFAULT_SERVICE:-pocoo}
 DEFAULT_LANGUAGE=${DEFAULT_LANGUAGE:-Plain Text}
 DEFAULT_EXPIRATION=${DEFAULT_EXPIRATION:-1 month}
 SERVICE=${SERVICE:-${DEFAULT_SERVICE}}
@@ -656,6 +683,9 @@ fi
 
 # read input
 case "$SOURCE" in
+	url )
+	INPUT="${INPUTURL}"
+	;;
 	command )
 	for c in "${COMMANDS[@]}"; do
 		if [[ $TEE ]]; then
@@ -728,39 +758,44 @@ SIZE=$(wc -c <<< "$INPUT")
 LINES=$(wc -l <<< "$INPUT")
 warnings >&2
 
-# create temp file (wget is much more reliable reading large input via --post-file rather than --post-data)
-[[ -f $TMPF ]] || TMPF=$(mktemp /tmp/wgetpaste.XXXXXX)
-if [[ -f $TMPF ]]; then
-	postdata > "$TMPF" || die "Failed to write to temporary file: \"$TMPF\"."
-	WGETARGS="--post-file=$TMPF"
-else
-	# fall back to using --post-data if the temporary file could not be created
-	# TABs and new lines need to be escaped for wget to interpret it as one string
-	WGETARGS="--post-data=$(postdata | sed -e 's|$|%0a|g' -e 's|\t|%09|g' | tr -d '\n')"
-fi
-
 # set recipient
 RECIPIENT=$(getrecipient RAW)
 
-# paste it
-WGETARGS="--tries=5 --timeout=60 $WGETARGS"
-if geturl needstdout || [[ $DEBUG || ! -w /dev/null ]]; then
-	OUTPUT=$(LC_ALL=C wget -O - $WGETARGS $RECIPIENT 2>&1)
+if [[ $SERVICE == tinyurl ]]; then
+	URL=$(LC_ALL=C wget -qO - "$RECIPIENT?url=$INPUT")
 else
-	OUTPUT=$(LC_ALL=C wget -O /dev/null $WGETARGS $RECIPIENT 2>&1)
-fi
-
-# clean temporary file if it was created
-if [[ -f $TMPF ]]; then
-	if [[ $DEBUG ]]; then
-		echo "Left temporary file: \"$TMPF\" alone for debugging purposes."
+	# create temp file (wget is much more reliable reading
+	# large input via --post-file rather than --post-data)
+	[[ -f $TMPF ]] || TMPF=$(mktemp /tmp/wgetpaste.XXXXXX)
+	if [[ -f $TMPF ]]; then
+		postdata > "$TMPF" || die "Failed to write to temporary file: \"$TMPF\"."
+		WGETARGS="--post-file=$TMPF"
 	else
-		rm "$TMPF" || echo "Failed to remove temporary file: \"$TMPF\"." >&2
+		# fall back to using --post-data if the temporary file could not be created
+		# TABs and new lines need to be escaped for wget to interpret it as one string
+		WGETARGS="--post-data=$(postdata | sed -e 's|$|%0a|g' -e 's|\t|%09|g' | tr -d '\n')"
 	fi
-fi
 
-# get the url
-URL=$(geturl "$OUTPUT")
+	# paste it
+	WGETARGS="--tries=5 --timeout=60 $WGETARGS"
+	if geturl needstdout || [[ $DEBUG || ! -w /dev/null ]]; then
+		OUTPUT=$(LC_ALL=C wget -O - $WGETARGS $RECIPIENT 2>&1)
+	else
+		OUTPUT=$(LC_ALL=C wget -O /dev/null $WGETARGS $RECIPIENT 2>&1)
+	fi
+
+	# clean temporary file if it was created
+	if [[ -f $TMPF ]]; then
+		if [[ $DEBUG ]]; then
+			echo "Left temporary file: \"$TMPF\" alone for debugging purposes."
+		else
+			rm "$TMPF" || echo "Failed to remove temporary file: \"$TMPF\"." >&2
+		fi
+	fi
+
+	# get the url
+	URL=$(geturl "$OUTPUT")
+fi
 
 # verify that the pastebin service did not return a known error url such as toofast.html from rafb
 verifyurl
