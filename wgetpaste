@@ -4,7 +4,7 @@
 # Copyright (c) 2007-2009 Bo Ørsted Andresen <bo.andresen@zlin.dk>
 # Distributed in the public domain. Do with it whatever you want.
 
-VERSION="2.16"
+VERSION="2.17"
 
 # don't inherit LANGUAGE from the env
 unset LANGUAGE
@@ -306,9 +306,9 @@ Options:
     -g, --ignore-configs          ignore /etc/wgetpaste.conf, ~/.wgetpaste.conf etc.
         --version                 show version information
 
-Defaults (DEFAULT_{NICK,SERVICE,LANGUAGE,EXPIRATION}[_\${SERVICE}]) can be overridden
-globally in /etc/wgetpaste.conf or /etc/wgetpaste.d/*.conf or per user in any of
-~/.wgetpaste.conf or ~/.wgetpaste.d/*.conf.
+Defaults (DEFAULT_{NICK,LANGUAGE,EXPIRATION}[_\${SERVICE}] and DEFAULT_SERVICE)
+can be overridden globally in /etc/wgetpaste.conf or /etc/wgetpaste.d/*.conf or
+per user in any of ~/.wgetpaste.conf or ~/.wgetpaste.d/*.conf.
 EOF
 }
 
