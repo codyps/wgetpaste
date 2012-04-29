@@ -4,7 +4,7 @@
 # Copyright (c) 2007-2009 Bo Ørsted Andresen <bo.andresen@zlin.dk>
 # Distributed in the public domain. Do with it whatever you want.
 
-VERSION="2.18"
+VERSION="2.19"
 
 # don't inherit LANGUAGE from the env
 unset LANGUAGE
@@ -14,7 +14,7 @@ E=$'\e'
 N=$'\n'
 
 ### services
-SERVICES="ca codepad dpaste osl pocoo"
+SERVICES="ca codepad gists dpaste osl"
 # ca
 ENGINE_ca=ca
 URL_ca="http://pastebin.ca/"
@@ -29,12 +29,12 @@ URL_dpaste="http://dpaste.com/"
 SIZE_dpaste="25000 25%kB"
 DESCRIPTION_SIZE_dpaste="50"
 DEFAULT_EXPIRATION_dpaste="30 days"
+# gists
+ENGINE_gists=gists
+URL_gists="https://api.github.com/gists"
 # osl
 ENGINE_osl=osl
 URL_osl="http://pastebin.osuosl.org/ pastebin.php"
-# pocoo
-ENGINE_pocoo=pocoo
-URL_pocoo="http://paste.pocoo.org/"
 # tinyurl
 ENGINE_tinyurl=tinyurl
 URL_tinyurl="http://tinyurl.com/ api-create.php"
@@ -66,6 +66,40 @@ EXPIRATIONS_dpaste="30%days 30%days%after%last%view"
 EXPIRATION_VALUES_dpaste="off on"
 POST_dpaste="submit=Paste+it poster title language hold % content"
 REGEX_RAW_dpaste='s|^\(http://[^/]*/\)[^0-9]*\([0-9]*/\)$|\1\2plain/|'
+# gists
+LANGUAGES_gists="ActionScript Ada Apex AppleScript Arc Arduino ASP Assembly
+Augeas AutoHotkey Batchfile Befunge BlitzMax Boo Brainfuck Bro C C# C++
+C2hs%Haskell ChucK Clojure CMake C-ObjDump CoffeeScript ColdFusion Common%Lisp
+Coq Cpp-ObjDump CSS Cucumber Cython D Darcs%Patch Dart DCPU-16%ASM Delphi Diff
+D-ObjDump Dylan eC Ecere%Projects Eiffel Elixir Emacs%Lisp Erlang F# Factor
+Fancy Fantom FORTRAN GAS Genshi Gentoo%Ebuild Gentoo%Eclass Gettext%Catalog Go
+Gosu Groff Groovy Groovy%Server%Pages Haml Haskell HaXe HTML HTML+Django
+HTML+ERB HTML+PHP INI Io Ioke IRC%log Java JavaScript Java%Server%Pages JSON
+Julia Kotlin LilyPond Literate%Haskell LLVM Logtalk Lua Makefile Mako Markdown
+Matlab Max/MSP MiniD Mirah Moocode mupad Myghty Nemerle Nimrod Nu NumPy ObjDump
+Objective-C Objective-J OCaml ooc Opa OpenCL OpenEdge%ABL Parrot Parrot%Assembly
+Parrot%Internal%Representation Perl PHP Plain%Text PowerShell Prolog Puppet
+Pure%Data Python Python%traceback R Racket Raw%token%data Rebol Redcode
+reStructuredText RHTML Ruby Rust Sage Sass Scala Scheme Scilab SCSS Self Shell
+Smalltalk Smarty SQL Standard%ML SuperCollider Tcl Tcsh Tea TeX Textile Turing
+Twig Vala Verilog VHDL VimL Visual%Basic XML XQuery XS YAML"
+LANGUAGE_VALUES_gists="as adb cls scpt arc ino asp asm aug ahk bat befunge bmx
+boo b bro c cs cpp chs ck clj cmake c-objdump coffee cfm lisp v cppobjdump css
+feature pyx d darcspatch dart dasm16 pas diff d-objdump dylan ec epj e ex el erl
+fs factor fy fan f90 s kid ebuild eclass po go gs man groovy gsp haml hs hx html
+mustache erb phtml cfg io ik weechatlog java js jsp json jl kt ly lhs ll lgt lua
+mak mako md matlab mxt minid duby moo mu myt n nim nu numpy objdump m j ml ooc
+opa cl p parrot pasm pir pl aw txt ps1 pl pp pd py pytb r rkt raw r cw rst rhtml
+rb rs sage sass scala scm sci scss self sh st tpl sql sml sc tcl tcsh tea tex
+textile t twig vala v vhd vim vb xml xq xs yml"
+REGEX_URL_gists='s|^.*"html_url": "\([^"]\+\)".*$|\1|p'
+REGEX_RAW_gists='s|^\(https://\)\(gist\)\(.github.com/\)\(.*\)$|\1raw\3\2/\4/|'
+escape_description_gists() { sed -e 's|"|\\"|g' -e 's|\x1b|\\u001b|g' -e 's|\r||g' <<< "$*"; }
+escape_input_gists() { sed -e 's|\\|\\\\|g' -e 's|\x1b|\\u001b|g' -e 's|\r||g' -e 's|\t|\\t|g' -e 's|"|\\"|g' -e 's|$|\\n|' <<< "$*" | tr -d '\n'; }
+json_gists() {
+    local description="${1}" language="${2}" content="${3}"
+    echo "{\"description\":\"${description}\",\"public\":\"true\",\"files\":{\"${description//\/}.${language}\":{\"content\":\"${content}\"}}"
+}
 # osl
 LANGUAGES_osl="Plain%Text ActionScript Ada Apache%Log%File AppleScript Assembly%(NASM) \
 ASP Bash C C%for%Macs CAD%DCL CAD%Lisp C++ C# ColdFusion CSS D Delphi Diff DOS Eiffel Fortran \
@@ -80,21 +114,6 @@ EXPIRATIONS_osl="Never 1%day 1%month"
 EXPIRATION_VALUES_osl="f d m"
 POST_osl="paste=Send poster % format expiry % code2"
 REGEX_RAW_osl='s|^\(http://[^/]*/\)\([0-9]*\)$|\1pastebin.php?dl=\2|'
-# pocoo
-LANGUAGES_pocoo="Apache%Config%(.htaccess) Bash Batch%(.bat) Boo C C# C++ Clojure Creole%Wiki CSS \
-CSV D Debian%control-files Django%/%Jinja%Templates Dylan Erlang eRuby%/%rhtml GAS GCC%Messages \
-Genshi%Templates Gettext%catalogs GL%Shader%language Haskell HTML INI%File Interactive%Ruby IO \
-IRC%Logs Java javac%Messages JavaScript JSP Lighttpd Literate%Haskell LLVM Lua Mako%Templates Matlab \
-Matlab%Session MiniD Multi-File Myghty%Templates MySQL Nasm Nginx Object-Pascal OCaml Perl PHP \
-PHP%(inline) Povray Python Python%Console%Sessions Python%Tracebacks reStructuredText Ruby Scala \
-Scheme Smalltalk Smarty sources.list SQL SquidConf TeX%/%LaTeX Plain%Text Unified%Diff Vim XML XSLT YAML"
-LANGUAGE_VALUES_pocoo="apache bash bat boo c csharp cpp clojure creole css csv d control html+django \
-dylan erlang rhtml gas gcc-messages html+genshi gettext glsl haskell html ini irb io irc java \
-javac-messages js jsp lighttpd literate-haskell llvm lua html+mako matlab matlabsession minid multi \
-html+myghty mysql nasm nginx objectpascal ocaml perl html+php php povray python pycon pytb rst ruby \
-scala scheme smalltalk smarty sourceslist sql squidconf tex text diff vim xml xslt yaml"
-POST_pocoo="submit=Paste! % % language % % code"
-REGEX_RAW_pocoo='s|^\(http://[^/]*/\)show\(/[0-9]*/\)$|\1raw\2|'
 
 ### errors
 die() {
@@ -421,21 +440,27 @@ getrecipient() {
 postdata() {
 	local post nr extra f
 	post=POST_$ENGINE
-	nr=${!post//[^ ]}
-	[[ 6 = ${#nr} ]] || die "\"${SERVICE}\" is not supported by ${FUNCNAME}()."
-	extra=${!post%% *}
-	[[ '%' = $extra ]] || echo -n "$extra&"
-	e() {
-		post="$1"
-		shift
-		while [[ -n $1 ]]; do
-			f=${post%% *}
-			[[ '%' != $f ]] && echo -n "$f=${!1}" && [[ $# -gt 1 ]] && echo -n "&"
+	if [[ -n ${!post} ]]; then
+		nr=${!post//[^ ]}
+		[[ 6 = ${#nr} ]] || die "\"${SERVICE}\" is not supported by ${FUNCNAME}()."
+		extra=${!post%% *}
+		[[ '%' = $extra ]] || echo -n "$extra&"
+		e() {
+			post="$1"
 			shift
-			post=${post#$f }
-		done
-	}
-	e "${!post#$extra }" NICK DESCRIPTION LANGUAGE EXPIRATION CVT_TABS INPUT
+			while [[ -n $1 ]]; do
+				f=${post%% *}
+				[[ '%' != $f ]] && echo -n "$f=${!1}" && [[ $# -gt 1 ]] && echo -n "&"
+				shift
+				post=${post#$f }
+			done
+		}
+		e "${!post#$extra }" NICK DESCRIPTION LANGUAGE EXPIRATION CVT_TABS INPUT
+	elif [[ function == $(type -t json_$ENGINE) ]]; then
+		json_$ENGINE "$DESCRIPTION" "$LANGUAGE" "$INPUT"
+	else
+		die "\"${SERVICE}\" is not supported by ${FUNCNAME}()."
+	fi
 }
 
 # get url from response from server
@@ -608,7 +633,7 @@ load_configs() {
 load_configs
 [[ $SERVICESET ]] && verifyservice "$SERVICESET" && SERVICE=$(escape "$SERVICESET")
 DEFAULT_NICK=${DEFAULT_NICK:-$(whoami)} || die "whoami failed"
-DEFAULT_SERVICE=${DEFAULT_SERVICE:-pocoo}
+DEFAULT_SERVICE=${DEFAULT_SERVICE:-gists}
 DEFAULT_LANGUAGE=${DEFAULT_LANGUAGE:-Plain Text}
 DEFAULT_EXPIRATION=${DEFAULT_EXPIRATION:-1 month}
 SERVICE=${SERVICE:-${DEFAULT_SERVICE}}
@@ -759,8 +784,16 @@ fi
 [[ $TEE ]] && INPUT=$(<"$TMPF") && echo
 
 # escape DESCRIPTION and INPUT
-DESCRIPTION=$(escape "$DESCRIPTION")
-INPUT=$(escape "$INPUT")
+if [[ function = $(type -t escape_description_$ENGINE) ]]; then
+	DESCRIPTION=$(escape_description_$ENGINE "$DESCRIPTION")
+else
+	DESCRIPTION=$(escape "$DESCRIPTION")
+fi
+if [[ function = $(type -t escape_input_$ENGINE) ]]; then
+	INPUT=$(escape_input_$ENGINE "$INPUT")
+else
+	INPUT=$(escape "$INPUT")
+fi
 
 # print friendly warnings if max sizes have been specified for the pastebin service and the size exceeds that
 SIZE=$(wc -c <<< "$INPUT")
