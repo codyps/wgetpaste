@@ -473,7 +473,13 @@ geturl() {
 		sed -n -e "${!regex}" <<< "$*"
 	else
 		[[ needstdout = $1 ]] && return 1
-		sed -n -e 's|^.*Location: \(http://[^ ]*\).*$|\1|p' <<< "$*"
+		r=$(sed -n -e 's|^.*Location: \([^ ]*\).*$|\1|p' <<< "$*")
+		if echo "$r" | grep -q -v "^http://"; then
+			url=URL_$ENGINE
+			echo "${!url}$r"
+		else
+			echo "$r"
+		fi
 	fi
 }
 
