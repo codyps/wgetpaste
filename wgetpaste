@@ -4,7 +4,7 @@
 # Copyright (c) 2007-2009 Bo Ørsted Andresen <bo.andresen@zlin.dk>
 # Distributed in the public domain. Do with it whatever you want.
 
-VERSION="2.20"
+VERSION="2.23"
 
 # don't inherit LANGUAGE from the env
 unset LANGUAGE
@@ -14,7 +14,10 @@ E=$'\e'
 N=$'\n'
 
 ### services
-SERVICES="ca codepad dpaste gists poundpython"
+SERVICES="bpaste ca codepad dpaste gists poundpython"
+# bpaste
+ENGINE_bpaste=lodgeit
+URL_bpaste="http://bpaste.net/"
 # ca
 ENGINE_ca=ca
 URL_ca="http://pastebin.ca/"
@@ -82,7 +85,7 @@ Parrot%Internal%Representation Perl PHP Plain%Text PowerShell Prolog Puppet
 Pure%Data Python Python%traceback R Racket Raw%token%data Rebol Redcode
 reStructuredText RHTML Ruby Rust Sage Sass Scala Scheme Scilab SCSS Self Shell
 Smalltalk Smarty SQL Standard%ML SuperCollider Tcl Tcsh Tea TeX Textile Turing
-Twig Vala Verilog VHDL VimL Visual%Basic XML XQuery XS YAML"
+Twig Vala Verilog VHDL VimL Visual%Basic XML XQuery XS YAML Auto"
 LANGUAGE_VALUES_gists="as adb cls scpt arc ino asp asm aug ahk bat befunge bmx
 boo b bro c cs cpp chs ck clj cmake c-objdump coffee cfm lisp v cppobjdump css
 feature pyx d darcspatch dart dasm16 pas diff d-objdump dylan ec epj e ex el erl
@@ -91,28 +94,53 @@ mustache erb phtml cfg io ik weechatlog java js jsp json jl kt ly lhs ll lgt lua
 mak mako md matlab mxt minid duby moo mu myt n nim nu numpy objdump m j ml ooc
 opa cl p parrot pasm pir pl aw txt ps1 pl pp pd py pytb r rkt raw r cw rst rhtml
 rb rs sage sass scala scm sci scss self sh st tpl sql sml sc tcl tcsh tea tex
-textile t twig vala v vhd vim vb xml xq xs yml"
-REGEX_URL_gists='s|^.*"html_url": "\([^"]\+\)".*$|\1|p'
-REGEX_RAW_gists='s|^\(https://\)\(gist\)\(.github.com/\)\(.*\)$|\1raw\3\2/\4/|'
+textile t twig vala v vhd vim vb xml xq xs yml auto"
+DEFAULT_LANGUAGE_gists="Auto"
+REGEX_URL_gists='s|^.*"html_url": "\([^"]\+gist[^"]\+\)".*$|\1|p'
+REGEX_RAW_gists='s|^\(https://gist.github.com\)\(/.*\)$|\1/raw\2|'
 escape_description_gists() { sed -e 's|"|\\"|g' -e 's|\x1b|\\u001b|g' -e 's|\r||g' <<< "$*"; }
 escape_input_gists() { sed -e 's|\\|\\\\|g' -e 's|\x1b|\\u001b|g' -e 's|\r||g' -e 's|\t|\\t|g' -e 's|"|\\"|g' -e 's|$|\\n|' <<< "$*" | tr -d '\n'; }
 json_gists() {
     local description="${1}" language="${2}" content="${3}"
-    echo "{\"description\":\"${description}\",\"public\":\"true\",\"files\":{\"${description//\/}.${language}\":{\"content\":\"${content}\"}}"
+    [[ "$language" = auto ]] && language="" || language=".$language"
+    echo "{\"description\":\"${description}\",\"public\":\"true\",\"files\":{\"${description//\/}${language}\":{\"content\":\"${content}\"}}"
 }
 # lodgeit
-LANGUAGES_lodgeit="Apache%Config%(.htaccess) Bash Batch%(.bat) Boo C C# C++ Clojure Creole%Wiki CSS \
-CSV D Debian%control-files Django%/%Jinja%Templates Dylan Erlang eRuby%/%rhtml GAS GCC%Messages \
-Genshi%Templates Gettext%catalogs GL%Shader%language Haskell HTML INI%File Interactive%Ruby IO \
-IRC%Logs Java javac%Messages JavaScript JSP Lighttpd Literate%Haskell LLVM Lua Mako%Templates Matlab \
-Matlab%Session MiniD Multi-File Myghty%Templates MySQL Nasm Nginx Object-Pascal OCaml Perl PHP \
-PHP%(inline) Povray Python Python%Console%Sessions Python%Tracebacks reStructuredText Ruby Scala \
-Scheme Smalltalk Smarty sources.list SQL SquidConf TeX%/%LaTeX Plain%Text Unified%Diff Vim XML XSLT YAML"
-LANGUAGE_VALUES_lodgeit="apache bash bat boo c csharp cpp clojure creole css csv d control html+django \
-dylan erlang rhtml gas gcc-messages html+genshi gettext glsl haskell html ini irb io irc java \
-javac-messages js jsp lighttpd literate-haskell llvm lua html+mako matlab matlabsession minid multi \
-html+myghty mysql nasm nginx objectpascal ocaml perl html+php php povray python pycon pytb rst ruby \
-scala scheme smalltalk smarty sourceslist sql squidconf tex text diff vim xml xslt yaml"
+LANGUAGES_lodgeit="ABAP ActionScript ActionScript%3 Ada ANTLR ANTLR%With%ActionScript%Target \
+ANTLR%With%CPP%Target ANTLR%With%C#%Target ANTLR%With%Java%Target ANTLR%With%ObjectiveC%Target \
+ANTLR%With%Perl%Target ANTLR%With%Python%Target ANTLR%With%Ruby%Target ApacheConf AppleScript \
+aspx-cs aspx-vb Asymptote Bash Bash%Session Batchfile BBCode Befunge Boo Brainfuck C C# C++ \
+cfstatement Cheetah Clojure CMake c-objdump CoffeeScript Common%Lisp cpp-objdump Creole%Wiki CSS \
+CSS+Django/Jinja CSS+Genshi%Text CSS+Mako CSS+Myghty CSS+PHP CSS+Ruby CSS+Smarty CSV Cython D \
+Darcs%Patch Debian%Control%file Debian%Sourcelist Delphi Django/Jinja d-objdump Dylan Embedded%Ragel \
+ERB Erlang Erlang%erl%session Evoque Felix Fortran GAS GCC%Messages Genshi Genshi%Text \
+Gettext%Catalog Gherkin GLSL Gnuplot Go Groff Haml Haskell haXe HTML HTML+Cheetah HTML+Django/Jinja \
+HTML+Evoque HTML+Genshi HTML+Mako HTML+Myghty HTML+PHP HTML+Smarty INI Io IRC%logs Java \
+javac%Messages JavaScript JavaScript+Cheetah JavaScript+Django/Jinja JavaScript+Genshi%Text \
+JavaScript+Mako JavaScript+Myghty JavaScript+PHP JavaScript+Ruby JavaScript+Smarty Java%Server%Page \
+Lighttpd%configuration%file Literate%Haskell LLVM Logtalk Lua Makefile Mako Matlab Matlab%session \
+MiniD Modelica Modula-2 MoinMoin/Trac%Wiki%markup MOOCode Multi-File MuPAD MXML Myghty MySQL NASM \
+Newspeak Nginx%configuration%file NumPy objdump Objective-C Objective-J OCaml Ooc Perl PHP \
+Plain%Text POVRay Prolog Python Python%3 Python%3.0%Traceback Python%console%session \
+Python%Traceback Ragel Ragel%in%C%Host Ragel%in%CPP%Host Ragel%in%D%Host Ragel%in%Java%Host \
+Ragel%in%Objective%C%Host Ragel%in%Ruby%Host Raw%token%data RConsole REBOL Redcode reStructuredText \
+RHTML Ruby Ruby%irb%session S Sass Scala Scheme Smalltalk Smarty SQL sqlite3con SquidConf Tcl Tcsh \
+TeX Unified%Diff Vala VB.net VimL XML XML+Cheetah XML+Django/Jinja XML+Evoque XML+Mako XML+Myghty \
+XML+PHP XML+Ruby XML+Smarty XSLT YAML"
+LANGUAGE_VALUES_lodgeit="abap as as3 ada antlr antlr-as antlr-cpp antlr-csharp antlr-java antlr-objc \
+antlr-perl antlr-python antlr-ruby apacheconf applescript aspx-cs aspx-vb asy bash console bat \
+bbcode befunge boo brainfuck c csharp cpp cfs cheetah clojure cmake c-objdump coffee-script \
+common-lisp cpp-objdump creole css css+django css+genshitext css+mako css+myghty css+php css+erb \
+css+smarty csv cython d dpatch control sourceslist delphi django d-objdump dylan ragel-em erb erlang \
+erl evoque felix fortran gas gcc-messages genshi genshitext pot Cucumber glsl gnuplot go groff haml \
+haskell hx html html+cheetah html+django html+evoque html+genshi html+mako html+myghty html+php \
+html+smarty ini io irc java javac-messages js js+cheetah js+django js+genshitext js+mako js+myghty \
+js+php js+erb js+smarty jsp lighty lhs llvm logtalk lua make mako matlab matlabsession minid \
+modelica modula2 trac-wiki moocode multi mupad mxml myghty mysql nasm newspeak nginx numpy objdump \
+objective-c objective-j ocaml ooc perl php text pov prolog python python3 py3tb pycon pytb ragel \
+ragel-c ragel-cpp ragel-d ragel-java ragel-objc ragel-ruby raw rconsole rebol redcode rst rhtml rb \
+rbcon splus sass scala scheme smalltalk smarty sql sqlite3 squidconf tcl tcsh tex diff vala vb.net \
+vim xml xml+cheetah xml+django xml+evoque xml+mako xml+myghty xml+php xml+erb xml+smarty xslt yaml"
 POST_lodgeit="submit=Paste! % % language % % code"
 REGEX_RAW_lodgeit='s|^\(http://[^/]*/\)show\(/[0-9]*/\)$|\1raw\2|'
 
@@ -329,6 +357,10 @@ Options:
 Defaults (DEFAULT_{NICK,LANGUAGE,EXPIRATION}[_\${SERVICE}] and DEFAULT_SERVICE)
 can be overridden globally in /etc/wgetpaste.conf or /etc/wgetpaste.d/*.conf or
 per user in any of ~/.wgetpaste.conf or ~/.wgetpaste.d/*.conf.
+
+An additional http header can be passed by setting HEADER_\${SERVICE} in any of the
+configuration files mentioned above. For example, authenticating with github gist:
+HEADER_gists="Authorization: token 1234abc56789..."
 EOF
 }
 
@@ -640,7 +672,7 @@ load_configs() {
 load_configs
 [[ $SERVICESET ]] && verifyservice "$SERVICESET" && SERVICE=$(escape "$SERVICESET")
 DEFAULT_NICK=${DEFAULT_NICK:-$(whoami)} || die "whoami failed"
-DEFAULT_SERVICE=${DEFAULT_SERVICE:-gists}
+DEFAULT_SERVICE=${DEFAULT_SERVICE:-bpaste}
 DEFAULT_LANGUAGE=${DEFAULT_LANGUAGE:-Plain Text}
 DEFAULT_EXPIRATION=${DEFAULT_EXPIRATION:-1 month}
 SERVICE=${SERVICE:-${DEFAULT_SERVICE}}
@@ -825,12 +857,19 @@ else
 		WGETARGS="--post-data=$(postdata | sed -e 's|$|%0a|g' -e 's|\t|%09|g' | tr -d '\n')"
 	fi
 
+	header="HEADER_$SERVICE"
+	if [[ -n "${!header}" ]]; then
+		WGETEXTRAHEADER="--header=${!header}"
+	else
+		WGETEXTRAHEADER=""
+	fi
+
 	# paste it
 	WGETARGS="--tries=5 --timeout=60 $WGETARGS"
 	if geturl needstdout || [[ $DEBUG || ! -w /dev/null ]]; then
-		OUTPUT=$(LC_ALL=C wget -O - $WGETARGS $RECIPIENT 2>&1)
+		OUTPUT=$(LC_ALL=C wget -O - $WGETARGS "$WGETEXTRAHEADER" $RECIPIENT 2>&1)
 	else
-		OUTPUT=$(LC_ALL=C wget -O /dev/null $WGETARGS $RECIPIENT 2>&1)
+		OUTPUT=$(LC_ALL=C wget -O /dev/null $WGETARGS "$WGETEXTRAHEADER" $RECIPIENT 2>&1)
 	fi
 
 	# clean temporary file if it was created
